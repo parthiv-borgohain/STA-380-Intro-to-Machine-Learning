@@ -1,0 +1,1237 @@
+---
+title: "STA 380: Intro to ML - Take Home Exam"
+author: "Parthiv Borgohain"
+date: "2022-07-29"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Note:** For this take home exam, I have used 
+**ISLR Edition 1.**
+
+  
+# Chapter 2 \| Problem 10
+
+```{r , echo = FALSE , fig.align='left'}
+rm(list=ls())
+library(ISLR)
+library(MASS)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+df<-Boston
+?Boston
+```
+
+We first take a look at the Boston dataset and its rows and columns.
+
+```{r , echo = FALSE , fig.align='left'}
+head(df,2)
+```
+
+### *Part (A)*
+
+```{r , echo = FALSE , fig.align='left'}
+print(paste('No. of Rows in Boston DF is' , nrow(df)))
+print(paste('No. of Columns in Boston DF is' , ncol(df)))
+print("Every row represents a suburb of Boston and column represents different variables associated with that suburb")
+```
+
+### *Part (B)*
+
+We try to create a heatmap for the correlation matrix to get a preliminary idea of the correlation between variables
+
+```{r , echo = FALSE , fig.align='left'}
+cormat <- round(x = cor(df), digits = 2)
+head(cormat)
+melted_cormat<-melt(cormat)
+head(melted_cormat)
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill = value)) +
+  geom_tile()
+```
+
+Using the heatmap, we will now plot some of the correlated variables pairwise
+
+```{r , echo = FALSE , fig.align='left'}
+cols <- c("indus","age","rm","dis","nox","crim","lstat","rad","tax","zn")
+pairs(df[,cols])
+
+```
+
+So, we can note the following observations from the pairwise plots:
+
+-   There seems to be a negative relationship between zn and indus. This is probably explained by the fact that residential areas are usually built away from industries
+
+-   There seems to be a negative relationship between zn and nox. This is probably explained by the fact that residential areas are usually built away from areas having pollutants like NOX.
+
+-   There seems to be a positive relationship between tax and rad.
+
+-   There seems to be a strong positive relationship between indus and nox. This seems to make sense as industrial areas will have more pollutants like NOX.
+
+### *Part (C)*
+
+Now we will take a look at the correlation of crime with other predictor variables
+
+```{r , echo = FALSE , fig.align='left'}
+crim_cor<-cor(df[, colnames(df)!="crim"],df$crim)
+print(crim_cor)  
+```
+
+Below are the findings:
+
+-   The variable crim does not appear to have an extremely strong correlation with any other variable in the predictor set
+
+-   The variables tax and rad are the variables with highest positive correlation with crim (0.63 and 0.58 respectively)
+
+-   The variables medv and dis are the variables with most negative correlation with crim (-0.39 and -0.38 respectively)
+
+### *Part (D)*
+
+We will check the range of each of these 3 attributes
+
+```{r , echo = FALSE , fig.align='left'}
+ranges <-  as.matrix(sapply(df[c('crim','tax','ptratio')], range))
+x <- c(ranges[2,]-ranges[1,])
+ranges <- rbind(ranges,x)  
+ranges
+```
+
+So, Tax has the highest range.
+
+Now let us look for the top 10 suburbs with highest crime rate per capita, tax and pupil teacher ratio each:
+
+```{r , echo = FALSE , fig.align='left'}
+df[c(order(df$crim,decreasing = T)[1:10]),c("crim","medv")]
+df[c(order(df$tax,decreasing = T)[1:10]),c("tax","medv")]
+df[c(order(df$ptratio,decreasing = T)[1:10]),c("ptratio","medv")]
+```
+
+### *Part (E)*
+
+```{r , echo = FALSE , fig.align='left'}
+no_of_towns <- nrow(df %>% filter(chas ==1))
+print(paste("No. of suburbs which bound Charles river : " , no_of_towns)) 
+```
+
+### *Part (F)*
+
+```{r , echo = FALSE , fig.align='left'}
+X <- df 
+medianptr <- median(X$ptratio)
+print(paste("Median PT Ratio amongst Towns is" , medianptr))
+```
+
+### *Part (G)*
+
+```{r , echo = FALSE , fig.align='left'}
+df[df$medv == min(df$medv),]
+```
+
+So, clearly there are two suburbs (**Suburb #399** and **#406**) with the **lowest median value** of owner-occupied homes.
+
+Now, To compare the other predictors with the rest of the dataset, we can use percentiles.
+
+```{r , echo = FALSE , fig.align='left'}
+col_df = names(df)
+A <- c()
+B <- c()
+for (x in seq(1,length(col_df)))
+{
+  perc.rank <- ecdf(df[,x])
+  A <- append(A,perc.rank(df[399,x]))
+  B <- append(B,perc.rank(df[406,x]))}
+
+percentdf = as.data.frame(col_df)
+percentdf <- cbind(percentdf,A)
+percentdf <- cbind(percentdf,B)
+
+names(percentdf) <- c("Variables","Suburb_399", "Suburb_406")
+head(percentdf,13)
+```
+
+So, Comparison of these variables with their overall ranges:
+
+-   Crim: \~99%ile for both the suburbs
+
+-   Zn : \~75%ile for both the suburbs
+
+-   indus: \~90%ile for both the suburbs
+
+-   Chas: \~93%ile for both the suburbs
+
+-   nox: \~86%ile for both the suburbs
+
+-   rm: \~7%ile for Suburb #399 and \~13%ile for Suburb #406
+
+-   dis: \~5%ile for Suburb #399 and \~4%ile for Suburb #406
+
+-   rad: \~100%ile for both the suburbs
+
+-   tax: \~99%ile for both the suburbs
+
+-   ptratio: \~89%ile for both the suburbs
+
+-   black: \~100%ile for Suburb #399 and \~35%ile for Suburb #406
+
+-  lstat: \~98%ile for Suburb #399 and \~90%ile for Suburb #406
+
+### *Part (H)*
+
+We will now filter and get the counts of both these types of suburbs
+
+```{r , echo = FALSE , fig.align='left'}
+print(paste("No. of Suburbs with > 7 rooms per dwelling =", nrow(df %>% filter(rm >7))))
+print(paste("No. of Suburbs with > 8 rooms per dwelling =", nrow(df %>% filter(rm >8))))
+
+```
+
+Analyzing further for suburbs with \>8 rooms per dwelling:
+
+```{r , echo = FALSE , fig.align='left'}
+df_more_8 <- df %>% filter(rm >8)
+meanvalue = apply(df_more_8,2, mean)
+medianvalue =   apply(df_more_8,2, median)
+```
+
+Calculating the percentiles for these mean values:
+
+```{r , echo = FALSE , fig.align='left'}
+colnamesdf = names(df)
+A <- c()
+B <- c()
+for (x in seq(1,length(colnamesdf)))
+{
+  perc.rank <- ecdf(df[,x])
+  A <- append(A,perc.rank(meanvalue[x]))
+  B <- append(B,perc.rank(medianvalue[x]))
+}
+
+percentdf = as.data.frame(colnamesdf)
+percentdf <- cbind(percentdf,A)
+percentdf <- cbind(percentdf,B)
+
+head(percentdf,15)
+```
+
+So, the key takeaways are:
+
+-   Their median values are extremely high (about 95% percentile),
+
+-   the proportion of residential land zoned for lots over 25,000 sq.ft is also pretty high at about 75% percentile
+
+-   their index of accessibility to radial highways is also pretty high at about 69% percentile
+
+-   their lstat values are very low with about 7% percentile for both categories.
+
+# Chapter 3 \| Problem 15
+
+```{r , echo = FALSE , fig.align='left'}
+rm(list=ls())
+library(ISLR)
+library(dplyr)
+df<-Boston
+attach(Boston)
+```
+
+### *Part (A)*
+
+First we will combine all columns into a single vector and remove crim variable from it.
+
+```{r , echo = FALSE , fig.align='left'}
+list_of_columns<-names(df)
+list_of_columns<-list_of_columns[2:length(list_of_columns)]
+var_list<-c()
+coefficients_list<-c()
+pvalue_list<-c()
+rsquare_list<-c()
+```
+
+We fit each variable with a linear regression model.
+
+
+```{r , echo = FALSE , fig.align='left'}
+for (i in list_of_columns)
+{
+  linear_model = lm(as.formula(paste("crim~",i)), data = df)
+  
+  var_list <- append(var_list,names(coefficients(object = linear_model)[2]))
+  coefficients_list <- append(coefficients_list,coefficients(object = linear_model)[2])
+  pvalue_list <- append(pvalue_list,summary(linear_model)$coefficients[,4][2])
+  rsquare_list <- append(rsquare_list,summary(linear_model)$r.squared)
+}
+```
+
+Summarizing all the models we have run into one table, we get -
+
+```{r , echo = FALSE , fig.align='left'}
+summary_view <- as.data.frame(cbind(coefficients_list,pvalue_list,rsquare_list))
+summary_view
+```
+
+Clearly, only the variable **'chas'** has a **p value of greater than 0.05**. So, 'chas' does **not have a statistically significant relationship** with the variable **'crim'**
+
+Exploring the relationship between *'chas'* and *'crim'* by a plot, we get-
+
+```{r , echo = FALSE , fig.align='left'}
+x = chas
+y = crim
+
+plot(x, y, main = "Regression Line",
+     xlab = "chas", ylab = "crim",
+     pch = 19, frame = FALSE)
+abline(lm(y ~ x, data = df), col = "red")
+```
+
+Clearly, the regression line is **almost horizontal**. So, the **coefficient is almost 0** and **not statistically significant**.
+
+On the other hand, we saw **high R Square values** for the variables **tax and rad** (**0.34 and 0.39** respectively).
+
+Exploring this further, we get for variables tax and crim-
+
+```{r , echo = FALSE , fig.align='left'}
+x = tax
+y = crim
+
+plot(x, y, main = "tax vs Crim",
+     xlab = "tax", ylab = "crim",
+     pch = 19, frame = FALSE)
+abline(lm(y ~ x, data = df), col = "red")
+#for rad and crim
+x = rad
+y = crim
+
+plot(x, y, main = "rad vs crim",
+     xlab = "rad", ylab = "crim",
+     pch = 19, frame = FALSE)
+abline(lm(y ~ x, data = df), col = "red")
+```
+
+So, by looking at the scatterplots, there seems to be some sort of a **statistically significant relationship** between **rad and crim**;**tax and crim**.
+
+### *Part (B)*
+
+Fitting a multiple linear regression model using all of the predictors-
+
+```{r , echo = FALSE , fig.align='left'}
+multiple_linear_model <- lm(crim~.,df)
+summary_table <- as.data.frame(summary(multiple_linear_model)$coefficients)
+summary_table
+```
+
+Keeping only those variables whose P value \< 0.05, we get-
+
+```{r , echo = FALSE , fig.align='left'}
+summary_table[summary_table[4]<0.05,]
+```
+
+As these 5 variables have **p value \< 5%**, they are **statistically significant**.
+
+### *Part (C)*
+
+```{r , echo = FALSE , fig.align='left'}
+univariate <-  coefficients_list
+multivariate <-  coefficients(object = multiple_linear_model)[-1]
+
+comparison <- as.data.frame(cbind(univariate,multivariate))
+
+plot(x = comparison$univariate, y = comparison$multivariate,col='Blue')
+```
+
+Clearly, there is **one outlier** here. The coefficient for **Nox** in the **univariate model** is about **32** while in the **multivariate model** it is about **-10**.
+
+In the univariate model, the effect of Nox on crim was being analyzed without considering other variables. But in the multivariate regression model, as other variables are also considered, **nox probably already was highly correlated with some other variable** resulting in a very negative coefficient in the multivariate model.
+
+So, in the **multivariate model, nox** has a **highly negative impact on crim**.
+
+### *Part (D)*
+
+So we will be **fitting a cubic model** for each of the predictor variables.
+
+```{r , echo = FALSE , fig.align='left'}
+var_list<-c()
+coefficients_list<-c()
+pvalue_list<-c()
+rsquare_list<-c()
+summarized_table<-c()
+
+for (i in list_of_columns)
+{
+  x <- eval(parse(text = eval(parse(text = "i"))))
+  x2 = x^2
+  x3 = x^3
+  regression_model = lm(crim~ x + x2 +x3)
+  print(i)
+  print(summary(regression_model))
+}
+```
+
+So, the **p values** for the **cubic term** are **statistically significant** for the following variables:
+
+**'medv','ptratio','dis','age','nox','indus'**
+
+This suggests that a **cubic relationship** is a **decent fit** for these variables.
+
+# Chapter 6 \| Problem 9
+
+```{r , echo = FALSE , fig.align='left'}
+rm(list=ls())
+library(ISLR)
+df <-College
+```
+
+### *Part (A)*
+
+First we will split the data into training set and test set (75%-25% ratio). We get-
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(100)
+sample <- sample.int(n = nrow(df), size = floor(0.75*nrow(df)), replace = F)
+train <- df[sample, ]
+test  <- df[-sample, ]
+print(paste0("overall observations :" , nrow(df)))
+print(paste0("Train observations : ", nrow(train)))
+print(paste0("Test observations : ", nrow(test)))
+```
+
+### *Part (B)*
+
+We will now fit a linear model using least squares-
+
+```{r , echo = FALSE , fig.align='left'}
+linear_model <- lm(Apps~. , data = train)
+linearmodel_pred <-  predict(linear_model,test)
+mse_test_linearmodel  <- mean((test$Apps - linearmodel_pred)^2)
+print(paste("Mean Square Error in test dataset for Least Sqaures is" , mse_test_linearmodel))
+```
+
+### *Part (C)*
+
+We will now fit a ridge regression model and choose lambda by 10-fold cross validation-
+
+```{r , echo = FALSE , fig.align='left'}
+library(glmnet)
+
+cols_x <- c("Private"  ,"Accept","Enroll","Top10perc"   ,"Top25perc" , 
+            "F.Undergrad" ,"P.Undergrad" ,"Outstate","Room.Board"  ,"Books"       ,"Personal"  ,
+            "PhD"         ,"Terminal"    ,"S.F.Ratio"   ,"perc.alumni" ,"Expend","Grad.Rate")
+
+set.seed(100)
+
+x_train <- train[cols_x]
+x_test <- test[cols_x]
+
+y_train <- train$Apps
+y_test <- test$Apps
+
+matrix_train_x <- model.matrix(~.,data=x_train)
+matrix_test_x <-  model.matrix(~.,data=x_test)
+
+grid <- 10^ seq (10,-2, length =100)
+ridge.fit <- glmnet(matrix_train_x, y = y_train , alpha = 0, lambda = grid)
+
+cv.out =cv.glmnet(matrix_train_x,y_train, alpha =0,nfolds = 10) ## 0 means ridge, 1 means lasso
+plot(cv.out)
+bestlambda =cv.out$lambda.min
+plot(ridge.fit)
+print(paste("From the plot, best Lambda Value is:" , bestlambda))
+```
+
+Now we will create a model with the best value of lambda-
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(100)
+ridge.fit <- glmnet(matrix_train_x, y = y_train , alpha = 0, lambda = bestlambda)
+
+ridge.pred= predict(ridge.fit , s= bestlambda ,newx =matrix_test_x, type = "response")
+
+mse_test_ridge <- mean((ridge.pred -y_test)^2)
+print(paste("Mean Square Error in test dataset for Ridge is" , mse_test_ridge))
+
+coef.R = predict(cv.out,type="coefficients",s=bestlambda)
+
+reduction_in_error=((mse_test_linearmodel-mse_test_ridge)/mse_test_linearmodel)*100
+print(paste("Reduction in error is" , reduction_in_error,"%"))
+
+```
+
+We will fit a lasso regression model now. Again we will use cross validation to find the best value of lambda
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(100)
+lasso.fit = glmnet(matrix_train_x, y = y_train , alpha = 1, lambda = grid)
+plot(lasso.fit)
+
+cv.out =cv.glmnet(matrix_train_x,y_train, alpha =1,nfolds = 10) ## 0 means ridge, 
+plot(cv.out)
+bestlambda =cv.out$lambda.min
+print(paste("From the plot, best Lambda Value is:" , bestlambda))
+```
+
+Now using this lambda value to fit a lasso regression model, we get-
+
+```{r , echo = FALSE , fig.align='left'}
+lasso.fit = glmnet(matrix_train_x, y = y_train , alpha = 1, lambda = bestlambda)
+lasso.pred= predict(lasso.fit , s= bestlambda ,newx =matrix_test_x, type = "response")
+mse_test_lasso <- mean((lasso.pred -y_test)^2)
+print(paste("Mean Square Error in test dataset for Lasso is" , mse_test_lasso))
+
+coef.L = predict(cv.out,type="coefficients",s=bestlambda)
+
+coef.L
+```
+
+Out of Sample MSE for **Lasso (884203)** is **more** than that of **Ridge (787423)**
+
+The **coefficients** for **F.Undergrad and Books are 0**
+
+### *Part (E)*
+
+We will now fit a ridge regression model and choose lambda by 10-fold cross validation-
+
+```{r , echo = FALSE , fig.align='left'}
+library(pls)
+set.seed(100)
+pcr_fit <- pcr(Apps~. , data = train, scale= TRUE, validation = "CV")
+#summary(pcr_fit)
+validationplot(pcr_fit ,val.type ="MSEP")
+```
+
+So, clearly from the plot,the error is reduced when no. of components is 17.
+
+So, no variables were removed and **there is no difference between PCR and OLS models**.
+
+If we are to check the MSE for PCR, we get-
+
+```{r , echo = FALSE , fig.align='left'}
+pcr.pred=predict (pcr_fit ,test, ncomp =17)
+mse_test_pcr <- mean((pcr.pred -test$Apps)^2)
+print(paste("Mean Square Error in test dataset for PCR is" , mse_test_pcr))
+```
+
+So the MSE for PCR is same as OLS which was expected.
+
+### *Part (F)*
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(100)
+
+plsr_fit <- plsr(Apps~. , data = train, scale= TRUE, validation = "CV")
+validationplot(plsr_fit ,val.type ="MSEP")
+```
+
+From this plot, we can see that the **total error is reduced when the no of components is 6**. Even if we add more components after 6, the total error stays the same.
+
+We will now choose 6 components as we prefer a simpler model.
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(99)
+
+plsr.pred=predict (plsr_fit ,test, ncomp =6)
+mse_test_plsr <- mean((plsr.pred -test$Apps)^2)
+print(paste("Mean Square Error in test dataset for PLS with 6 components is" , mse_test_plsr))
+```
+
+### *Part (G)*
+Now, having run all the models, we will compare the errors of all the models we have run so far by using a Bar Plot. We get-
+
+```{r , echo = FALSE , fig.align='left'}
+model_names <- c('OLS',"RIDGE","LASSO","PCR","PLSR")
+error_in_models<-c(mse_test_linearmodel,mse_test_ridge,mse_test_lasso,mse_test_pcr,mse_test_plsr)
+barplot(error_in_models,names.arg = model_names,xlab = "Model",ylab = "Test MSE",col="Cyan")
+```
+
+So, clearly from the plot, Ridge has the best performance followed by Lasso and then PCR=OLS and then finally PLSR
+
+# Chapter 6 \| Problem 11
+
+```{r , echo = FALSE , fig.align='left'}
+rm(list=ls())
+library(ISLR)
+library(leaps)
+df<-Boston
+```
+
+### *Part (A) and Part (B)*
+
+We will first try subset selection
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(100)
+sample <- sample.int(n = nrow(df), size = floor(0.70*nrow(df)), replace = F)
+train <- df[sample, ]
+test  <- df[-sample, ]
+
+regfit.best <- regsubsets(crim~., train, nvmax = 12)
+reg.summary <- summary(regfit.best)
+
+set.seed(100)
+test.mat =model.matrix(crim ~.,data=test)
+val.errors =rep(NA ,12)
+for(i in 1:12) 
+{ 
+  coefficients=coef(regfit.best ,id=i)
+  pred=test.mat[,names(coefficients )]%*% coefficients
+  val.errors[i]= mean(( test$crim-pred)^2)
+}
+
+plot(val.errors, xlab = "Number of variables", ylab = "Test MSE", type = "l")
+abline(v = which.min(val.errors), col = "blue")
+print(paste("min Test MSE corresponding to best model is :" ,min(val.errors)))
+```
+
+So, a Model with **4 predictors** is giving us the **best MSE**. We will choose this model.
+
+Among the variables, we want to figure out which variables are the best.
+
+```{r , echo = FALSE , fig.align='left'}
+print("Variables selected in the training dataset model")
+coef(regfit.best ,4)
+print("Variables selected in the overall dataset model")
+regfit.full <- regsubsets(crim~., df, nvmax = 12)
+coef(regfit.full ,4)
+```
+
+The 4 variables associated with both the models are exactly the same. So, we can use this model.
+
+So, out of 13 variables, our model used 4.
+
+Now implementing Ridge Regression, we get-
+
+```{r , echo = FALSE , fig.align='left'}
+library(glmnet)
+cols_x <- c(names(df)[2:length(names(df))])
+set.seed(100)
+x_train <- train[cols_x]
+x_test <- test[cols_x]
+
+y_train <- train$crim
+y_test <- test$crim
+
+matrix_train_x <- model.matrix(~.,data=x_train)
+matrix_test_x <-  model.matrix(~.,data=x_test)
+
+grid <- 10^ seq (10,-2, length =100)
+ridge.fit <- glmnet(matrix_train_x, y = y_train , alpha = 0, lambda = grid)
+
+cv.out =cv.glmnet(matrix_train_x,y_train, alpha =0,nfolds = 10) ## 0 means ridge, 1 means lasso
+plot(cv.out)
+bestlambda =cv.out$lambda.min
+print(paste("Best Lambda value is",bestlambda))
+```
+
+Using the above obtained value of lambda, we will now create a ridge regression model.
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(100)
+ridge.fit <- glmnet(matrix_train_x, y = y_train , alpha = 0, lambda = bestlambda)
+
+ridge.pred= predict(ridge.fit , s= bestlambda ,newx =matrix_test_x, type = "response")
+
+mse_test_ridge <- mean((ridge.pred -y_test)^2)
+print(paste("MSE in test dataset for Ridge Regression Model using best Lambda value is" , mse_test_ridge))
+
+coef.R = predict(cv.out,type="coefficients",s=bestlambda)
+```
+
+So, the MSE for **Ridge Regression Model** is **slightly better** than the **Subset Selection Model (14.61 vs 16.13)**
+
+Now we will try to fit a Lasso Regression Model. Firstly, we will use cross validation to find the best Lambda value just like before.
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(100)
+lasso.fit = glmnet(matrix_train_x, y = y_train , alpha = 1, lambda = grid)
+plot(lasso.fit)
+
+cv.out =cv.glmnet(matrix_train_x,y_train, alpha =1,nfolds = 10) ## 0 means ridge, 
+plot(cv.out)
+bestlambda =cv.out$lambda.min
+print(paste("Best Lambda value is",bestlambda))
+```
+
+Using this lamda value, we now fit a lasso regression model.
+
+```{r , echo = FALSE , fig.align='left'}
+lasso.fit = glmnet(matrix_train_x, y = y_train , alpha = 1, lambda = bestlambda)
+lasso.pred= predict(lasso.fit , s= bestlambda ,newx =matrix_test_x, type = "response")
+mse_test_lasso <- mean((lasso.pred -y_test)^2)
+print(paste("Mean Square Error in test dataset for Lasso is" , mse_test_lasso))
+
+coef.L = predict(cv.out,type="coefficients",s=bestlambda)
+
+coef.L
+```
+
+MSE for **Lasso Regression** here is **slightly higher than Ridge Regression**.
+
+Coefficients for **age** and **lstat** are **0**.
+
+Now we will try to fit a PCR Model.
+
+```{r , echo = FALSE , fig.align='left'}
+library(pls)
+set.seed(100)
+pcr_fit <- pcr(crim~. , data = train, scale= TRUE, validation = "CV")
+validationplot(pcr_fit ,val.type ="MSEP")
+```
+
+Here least MSE is obtained by using all the variables i.e all 13 variables.
+
+```{r , echo = FALSE , fig.align='left'}
+pcr.pred=predict (pcr_fit ,test, ncomp =13)
+mse_test_pcr <- mean((pcr.pred -test$crim)^2)
+print(paste("MSE from best PCR Model is",mse_test_pcr))
+```
+
+The MSE of PCR is slightly worse than both Ridge and Lasso So, we will use Ridge Regression as it is giving us the least MSE among all the models
+
+### *Part (C)*
+
+We selected **Ridge Regression** out of all the given models as it had the least MSE. The Ridge Regression Model uses **all the 13 predictor variables**.
+
+Amongst the other models used, Subset Selection used only 4 predictor variables whereas Lasso Regression used 11 predictor variables and PCR used all 13 predictor variables in the model.
+
+# Chapter 8 \| Problem 8
+
+```{r , echo = FALSE , fig.align='left'}
+rm(list=ls())
+library(ISLR)
+library(tree)
+library(caret)
+df<-Carseats
+```
+
+## *Part (A)*
+
+Firstly we will encode the categorical variables with Yes or No Categories
+
+```{r , echo = FALSE , fig.align='left'}
+df["US_encoded"] <- ifelse(df$US == "Yes",1,0)
+df["Urban_encoded"] <- ifelse(df$Urban == "Yes",1,0)
+
+df <- df[,c("Sales", "CompPrice", "Income", "Advertising", "Population", "Price", "ShelveLoc","Age","Education", "US_encoded", "Urban_encoded")]
+```
+
+Now we will split the dataset into Training and Test Datasets as instructed. We will split it into a 75%-25% ratio.
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(300)
+sample <- sample.int(n = nrow(df), size = floor(.75*nrow(df)), replace = F)
+train <- df[sample, ]
+test  <- df[-sample, ]
+
+print(paste("overall observations :" , nrow(df)))
+print(paste("Train observations : ", nrow(train)))
+print(paste("Test observations : ", nrow(test)))
+```
+
+## *Part (B)*
+
+Now we will fit a regression tree to the training set.
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(100)
+big.tree = tree(Sales~.,data=train)
+
+summary(big.tree)
+
+#plot the tree
+plot(big.tree,type="uniform",cex=.8)
+text(big.tree)
+
+# MSE for Big Tree Test dataset
+test_prediction = predict(big.tree,test)
+rmse_test= mean((test$Sales - test_prediction)^2)
+print(paste("MSE for Test Dataset using Big tree is : ",rmse_test))
+
+#RMSE for the Training Set
+test_prediction = predict(big.tree,train)
+rmse_train= mean((train$Sales - test_prediction)^2)
+print(paste("MSE for Train Dataset using Big tree is : ",rmse_train))
+```
+
+Root variable used by tree is **"ShelveLoc"**.
+
+Only the variables "ShelveLoc","Price","Age","Population","CompPrice","Advertising","US_encoded" have been used to build the tree. This suggests that the remaining variables are not as important.
+
+**17 Terminal Nodes** are present in this Tree.
+
+The **MSE** for Test Set is **4.81**
+
+## *Part (C)*
+
+Now we will perform cross validation to find out the optimal tree complexity.
+
+```{r , echo = FALSE , fig.align='left'}
+cross_validation_carseats <-  cv.tree(big.tree)
+plot(cross_validation_carseats $size ,cross_validation_carseats $dev ,type='b')
+# MSE for Best Tree Train dataset
+test_prediction = predict(big.tree,train)
+rmse_train= mean((train$Sales - test_prediction)^2)
+```
+
+We can see that at **tree size=10** we get least deviation, so we will prune tree to 10 nodes.
+
+```{r , echo = FALSE , fig.align='left'}
+prune.tree = prune.tree(big.tree,best = 10)
+test_prediction = predict(prune.tree,train)
+rmse_test= mean((train$Sales - test_prediction)^2)
+print(paste("MSE for Train Dataset using Pruned tree is : ",rmse_test))
+test_prediction = predict(prune.tree,test)
+rmse_test= mean((test$Sales - test_prediction)^2)
+print(paste0("MSE for Test Dataset using Pruned tree is : ",rmse_test))
+```
+
+So by using Pruned Tree, MSE for Training Set increased significantly (**from 2.47 to 3.16**) but for Test Dataset there is an improvement in MSE from **4.82 for Big tree to 4.69 for pruned tree**. So, **bias of the model increased but variance decreased.**
+
+## *Part (D)*
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(1)
+library(randomForest)
+n = nrow(train)
+## Number of Tress that need to be run
+ntreev = c(100)
+nset = length(ntreev)
+fmat = matrix(0,n,nset)
+for(i in 1:nset) {
+  #cat('doing Train rf: ',i,'\n')
+  rffit = randomForest(Sales~.,data=train,ntree=100)
+  fmat[,i] = predict(rffit)
+}
+
+#plot oob error using last fitted rffit which has the largest ntree.
+par(mfrow=c(1,1))
+plot(rffit)
+```
+
+So lowest error is when no. of trees is around **75.**
+
+So, we now build a bagging model with **trees=75** and **no. of predictors=10** (the entire predictor set)
+
+```{r , echo = FALSE , fig.align='left'}
+set.seed(100)
+
+bagging_final = randomForest(Sales~.,data=train,ntree=75,mtry= 10)
+# MSE for Best Tree Bagging on the test  dataset
+test_prediction = predict(bagging_final,test)
+rmse_test= mean((test$Sales - test_prediction)^2)
+print(paste("MSE for Test Dataset using Best tree is : ",rmse_test))
+```
+
+Test Test MSE obtained here is about **2.78**. This is **much lesser** than the test MSE we obtained via a pruned decision tree (**4.69**).
+
+Now, using this bagging model, we will plot the importance of variables-
+
+```{r , echo = FALSE , fig.align='left'}
+varImpPlot(bagging_final)
+print(importance(bagging_final))
+```
+
+So, clearly the most important variables are **ShelveLoc** and **Price**. **US_encoded** and **Urban_encoded** are the least important variables as per the plot.
+
+## *Part (E)*
+
+Now we will try building Random Forests with different values of m from 1-10. Let us take the **no. of trees = 75** (same as in Bagging).
+
+```{r, echo=FALSE, fig.align='left'}
+set.seed(100)
+rmse_test_data <- c()
+
+for (x in c(1,2,3,4,5,6,7,8,9,10))
+{
+  
+  rf_model = randomForest(Sales~.,data=train,ntree=100,mtry = x)
+  
+  # MSE Calculation
+  test_prediction = predict(rf_model,test)
+  rmse_test= mean((test$Sales - test_prediction)^2)
+  rmse_test_data <- append(rmse_test_data,rmse_test)
+  
+  imp <- data.frame(importance(rf_model))
+  #order <- order(imp$IncNodePurity,decreasing = TRUE)
+  
+}
+plot(y = rmse_test_data,x = c(1,2,3,4,5,6,7,8,9,10) ,type = 'l',xlab = 'No. of Predictor Variables')
+```
+
+So, the least error  is obtained when **m=6**. So, building a Random Forest model with **m=6**, we get-
+
+```{r,echo=FALSE,fig.align='left'}
+random_forest_model = randomForest(Sales~.,data=train,ntree=75,mtry = 6)
+varImpPlot(random_forest_model)
+print(importance(random_forest_model))
+```
+
+Once again, the most important variables are **ShelveLoc** and **Price** and the least important are **Urban_encoded** and **US_encoded**. The results seem similar to ones obtained via Bagging. 
+
+```{r,echo=FALSE,fig.align='left'}
+
+```
+
+
+
+
+# Chapter 8 \| Problem 11
+
+```{r,echo=FALSE,fig.aling='left'}
+rm(list=ls())
+library(ISLR)
+library(dplyr)
+library(gbm)
+library(caret)
+df<-Caravan
+```
+
+We will perform data cleaning. We need to encode the Purchase variable.
+
+```{r,echo=FALSE,fig.align='left'}
+df["Purchase_encoded"] <- ifelse(df$Purchase == "Yes",1,0)
+col_vec = names(df)
+rm_vec = c("Purchase")
+keep_cols_ = setdiff(col_vec,rm_vec)
+df = df[,keep_cols_]
+```
+
+### Part (A)
+
+As instructed, we will keep 1000 rows as training set and the remaining as test set
+
+```{r,echo=FALSE,fig.align='left'}
+train <- df[seq(1,1000,1),]
+test <- df[-seq(1,1000,1),]
+print(paste("Rows in Training Dataset are : ", nrow(train)))
+print(paste("Rows in Testing Dataset are : ", nrow(test)))
+```
+
+### Part (B)
+
+We will now fit a Boosting Model with **no. of trees=1000** and **shrinkage parameter=0.01** to the training set.
+
+```{r,echo=FALSE,fig.align='left'}
+set.seed(100)
+boosting_model = gbm(Purchase_encoded~.,data=train,distribution='bernoulli',n.trees=1000, shrinkage = 0.01)
+p=ncol(train)-1
+vsum=summary(boosting_model,plotit=FALSE)
+row.names(vsum)=NULL
+print(summary.gbm(boosting_model))
+```
+
+So from the variable importance plot, the 5 most important predictor variables are: **PPERSAUT,MKOOPKLA,MOPLHOOG,PBRAND,MBERMIDD**
+
+### Part (C)
+```{r,echo=FALSE,fig.align='left'}
+boosting_prediction <- predict(boosting_model,test,type = "response")
+test$predicted_prob <- boosting_prediction
+df2 <- test %>% mutate(predicted_class= ifelse(predicted_prob >= 0.2,1,0))
+actual <-  df2$Purchase_enc
+pred <- df2$predicted_class
+
+print(confusionMatrix(
+  
+  factor(df2$predicted_class, levels = 0:1),
+  factor(df2$Purchase_enc,levels = 0:1)
+))
+```
+
+So, **prediction accuracy** of the Boosting model is 34/(120+34)**~22.08%**.
+
+Now applying Logistic Regression to the training set, we get-
+
+```{r,echo=FALSE,fig.align='left'}
+set.seed(100)
+mylogit <- glm(Purchase_encoded~. , data = train, family = "binomial")
+logistic_probabilities <- mylogit %>% predict(test, type = "response")
+logistic_prediction_cat = ifelse(logistic_probabilities>=0.2,1,0)
+
+print(confusionMatrix(
+  
+  factor(logistic_prediction_cat, levels = 0:1),
+  factor(df2$Purchase_enc,levels = 0:1)
+))
+```
+
+From the confusion matrix, prediction accuracy of the Logistic Regression Model is 58/(350+58)**~14.21%**
+
+So, in this case, **Boosting** has **higher precision** than **Logistic Regression.**
+
+# Chapter 10 \| Problem 7
+We want to show that the proportionality holds true for the dataset USArrests.
+```{r,echo=FALSE,fig.align='left'}
+rm(list=ls())
+library(ISLR)
+library(tidyverse)
+library(dplyr)
+df<- USArrests %>% as_tibble()
+```
+
+We will first load the dataset.
+
+```{r,echo=FALSE,fig.align='left'}
+df
+```
+
+We will now have to center and scale the variables in the dataset to between 0 and 1.
+
+```{r,echo=FALSE,fig.align='left'}
+df_scaled <- df %>% mutate_all(~scale(.)[,1])
+df
+df_scaled %>% summary()
+```
+
+Now we will compute the pair-wise Euclidean distances for all the points in the scaled dataset.
+
+```{r,echo=FALSE,fig.align='left'}
+distance_matrix <- dist(df_scaled) %>% as.matrix()
+head(distance_matrix,1) #Looking at the first few rows only
+```
+
+Now, we will compute the pairwise correlation for all the points in the scaled dataset and then compute (1-correlation) for all the points.
+
+```{r,echo=FALSE,fig.align='left'}
+cors_transformed <- 
+  df_scaled %>% 
+  as.matrix() %>% 
+  t() %>% 
+  cor() %>% 
+  magrittr::multiply_by(-1) %>% 
+  magrittr::add(1)
+
+head(cors_transformed,1) #Looking at first few row only
+```
+
+Finally, we plot distances vs (1-correlation) for all the points and observe the relationship.
+
+```{r,echo=FALSE,fig.align='left'}
+tibble(
+  distances = as.vector(distance_matrix),
+  correlations = as.vector(distance_matrix)
+) %>% 
+  ggplot(aes(distances, correlations)) +
+  geom_point()
+```
+
+Clearly, the relationship is **perfectly linear**. Hence, the **proportionality holds true** for the two quantities.
+
+# Problem 1 \| Beauty Pays!
+
+### Part 1
+
+```{r,echo=FALSE,fig.align='left'}
+rm(list=ls())
+file_location <- "C:\\Users\\parth\\OneDrive\\Documents\\UT Austin\\Intro to ML\\Supervised Learning\\Final Assignment\\Problem 1 Beauty Pays!\\"
+file_name <- "BeautyData.csv"
+df = read.csv(paste0(file_location,file_name))
+```
+
+Let us first perform some exploratory data analysis on this dataset.
+
+We will try to plot a scatterplot for CourseEvals and BeautyScore.
+
+```{r,echo=FALSE,fig.align='left'}
+attach(df)
+plot(CourseEvals~BeautyScore)
+```
+
+There seems to be some sort of a positive correlation between the two quantities.
+
+Let us now explore if BeautyScore varies significantly across the different variables by using boxplots.
+
+```{r,echo=FALSE,fig.align='left'}
+par(mfrow=c(2,2))
+boxplot(BeautyScore~female)
+boxplot(BeautyScore~tenuretrack)
+boxplot(BeautyScore~lower)
+boxplot(BeautyScore~nonenglish)
+```
+
+So, BeautyScore varies significantly across English and Non-English Speakers. There is some amount of difference in BeautyScores among Males and Females too (gender).
+
+Now let us look if similar variances across variables occur for the variable CourseEvals too.
+
+```{r,echo=FALSE,fig.align='left'}
+par(mfrow=c(2,2))
+boxplot(CourseEvals~female)
+boxplot(CourseEvals~tenuretrack)
+boxplot(CourseEvals~lower)
+boxplot(CourseEvals~nonenglish)
+```
+
+Here there is significant variance in almost all of the variables.
+
+Let us now create a simple linear regression model for CourseEvals with only BeautyScore as a predictor.
+
+```{r,echo=FALSE,fig.align='left'}
+linear_model_1 = lm(CourseEvals~BeautyScore)
+summary(linear_model_1)
+```
+
+The predictor BeautyScore seems significant as it has a very small p value. However, the adjusted R-squared is pretty low at only **0.1639.**
+
+Now let us add the female variable and check if it improves the model.
+
+```{r,echo=FALSE,fig.align='left'}
+linear_model_1 = lm(CourseEvals~BeautyScore+female)
+summary(linear_model_1)
+```
+
+Here too both the predictor variables are significant with very low p values. The adjusted R-squared is **0.2438** which is more than the previous model. So, this model is a better fit than the last one.
+
+We can check if BeautyScore and Female have any interactions by creating a new linear model.
+
+```{r,echo=FALSE,fig.align='left'}
+mod_2 = lm(CourseEvals~BeautyScore+female+BeautyScore*female)
+summary(mod_2)
+```
+
+The interaction term seems to have a **pretty high p-value**. So this term is **statistically insignificant** and hence can be discarded.
+
+Let us try creating a linear model with all the predictor variables of the dataset and compare it with the previous models.
+
+```{r,echo=FALSE,fig.align='left'}
+mod_1 = lm(CourseEvals~BeautyScore+female+lower+nonenglish+tenuretrack)
+summary(mod_1)
+par(mfrow=c(1,1))
+resid <- resid(mod_1)
+plot(fitted(mod_1),resid)
+```
+
+* Here, clearly all the predictor variables seem to be **statistically significant** as they have **very small p values**. The **adjusted R-Squared of 0.3399** also seems to be an improvement over the previous model.
+
+* The variables **female,lower,tenuretrack** seem to be **negatively correlated** with **CourseEvals**.
+
+* The variable **BeautyScore seems** to be **positively correlated** with **CourseEvals**.
+
+* As the variable **female** has a **negative coefficient**, so we can conclude that **females are usually scored lower than their male counterparts**.
+
+### Part 2
+
+By the above statement, Professor Hamermesh means that it is difficult to ascertain whether correlation implies causation in this case.
+
+While the possibility exists that people with higher BeautyScore are preferred during course evaluations, it could also mean that in the sample dataset we have taken, the people with higher beauty scores are more productive. 
+
+There is also the possibility of some other unknown variables influencing this correlation unbeknownst to us.
+
+# Problem 2 \| Housing Price Structure
+
+```{r,echo=FALSE,fig.align='left'}
+rm(list=ls())
+library(dplyr)
+file_location <- "C:\\Users\\parth\\OneDrive\\Documents\\UT Austin\\Intro to ML\\Supervised Learning\\Final Assignment\\Problem 2 Housing Price Structure\\"
+file_name <- "MidCity.csv"
+df = read.csv(paste0(file_location,file_name))
+```
+
+We first need to perform data preprocessing- 
+
+* We can drop the variable Home as it is only an index variable. 
+
+* We need to encode the variable Nbhd as it is categorical in nature. 
+
+* We also need to encode the binary categorical variable Brick.
+
+```{r,echo=FALSE,fig.align='left'}
+df1 = df %>% dplyr::select(c("Nbhd","Offers","SqFt","Brick","Bedrooms","Bathrooms","Price"))
+df1 = df1 %>% mutate(nbhd_1 = ifelse(Nbhd==1,1,0)) %>% mutate(nbhd_2 = ifelse(Nbhd==2,1,0)) %>% mutate(nbhd_3 = ifelse(Nbhd==3,1,0)) %>% mutate(brick_encoded = ifelse(Brick=="Yes",1,0))
+df1 = df1 %>% dplyr::select(-c(Nbhd, Brick))
+attach(df1)
+```
+
+Let us now fit a linear model with all the variables.
+
+```{r,echo=FALSE,fig.align='left'}
+linear_model = lm(Price~.-nbhd_3, data = df1)
+summary(linear_model)
+```
+
+Here are some of the preliminary observations-
+
+
+* Every variable seems to be **significant** as their **p values are > 0.05**. 
+
+* We also have a **very high adjusted R-squared** value of **0.861**. So, we can use this model for our analysis.
+
+* Also, we can see that the variable **nbhd_3** has been **removed** as it is a **singularity**.
+
+Now we shall answer the given questions one by one.
+
+### Part 1
+
+Given everything being equal, on average, a Brick house costs **$17297.3 more** than a non-brick house as per this model (as **17297.35** is the **coefficient of brick_encoded** in the linear regression model)
+
+### Part 2
+
+As both **nbhd_1 and nbhd_2** have **negative coefficients (-20681.037 and -22241.616)**, this means that on average, on every other variable remaining the same, a house in Neighborhood 3 costs **$20681.037 more **than a house in Neighborhood 1 and **$22241.616 more** than a house in Neighborhood 2.
+
+### Part 3
+
+As we are interested in analyzing the interaction of **nbhd_3** with **brick_encoded**, we need the variable nbhd_3 in our model which has been **dropped due to singularity**.
+
+To resolve this, we can **drop nbhd_1** and instead **use nbhd_3**.
+
+```{r,echo=FALSE,fig.align='left'}
+interaction_model = lm(Price~SqFt+Bedrooms+Bathrooms+nbhd_2+nbhd_3+brick_encoded + nbhd_3*brick_encoded+ Offers, data = df1)
+summary(interaction_model)
+```
+
+Here, we can see that the **interaction term (nbhd_3 x brick_encoded)** is **significant** as it has a **very small p-value**. The **adjusted R-Square value of 0.8665** is also a **slight improvement** over the previous multiple linear regression model involving all predictor variables.
+
+
+
+The coefficient of the interaction term tells us that on average, there is a **premium of $10181.577** on Brick Houses in **Neighbourhood 3**.
+
+### Part 4
+
+To combine **nbhd_1 and nbhd_2** into one variable, we can **drop them both** and **keep only nbhd_3**. Whenever nbhd_3=1, it would mean that the Neighbourhood is Neighborhood 3. When nbhd_3=0, it would mean that it is either Neighborhood 1 or 2. This is exactly what we want for our analysis.
+```{r,echo=FALSE,fig.align='left'}
+model_nbhd3 = lm(Price~SqFt+Bedrooms+Bathrooms+nbhd_3+brick_encoded + Offers, data = df1)
+summary(model_nbhd3)
+```
+
+The **Adjusted R-Square** is **almost the same** as the original model. The **RSE** has, in fact, **reduced** for this model. So, combining Neighborhoods 1 and 2 into a single "older" Neighborhood might make this Linear Regression Model a **better model**.
+
+# Problem 3 \| What causes what??
+
+### *Part 1*
+Well, although it could be done, it may not be the most prudent approach to take as correlation may not imply causation. Also, the direction of the relationship between these relationships could be the other way around (i.e. more cops could have been deployed in the city by authorities due to high crime rate).
+
+Also, there might be some other unknown variables and factors which might be impacting both the crime rate and the number of cops in the country. It would not be wise to make a definitive inference taking only crime and no. of cops into consideration.
+
+### *Part 2*
+
+The Researchers at UPenn analyzed ‘Orange Alert Days’. On ‘Orange Alert Days’, more cops are deployed in the DC Area due to the fear of terrorist attacks. By taking metro ridership levels as a substitute for the no. of victims, they ensured that the no. of victims is steady with respect to other days. This enabled them to reject the hypothesis that the fall in crime rate is because of decrease in the no. of victims.
+
+Looking at the first table: on high alert days, the **coefficient is negative** which suggests a fall in crime rate. However, in this model, they did not control for the no. of victims.
+
+Looking at the second table: in this model, they did control for the no. of victims. Even after controlling for this variable, the **coefficient remained negative** and the **relationship did not change much**.  So, this indicates that **at the same level of metro ridership, crime rate fell on high alert days**.
+
+### *Part 3*
+
+The researchers wanted to check if high alert days impacted crime rate given that the no. of victims have remained the same. They hence introduced the metro ridership attribute into the model so that it could act as a proxy for #Victims
+
+### *Part 4*
+
+The researchers are attempting to estimate how the effect of high alert is different on district 1 and other districts.
+
+The model can be interpreted as follow:- For District 1, **on high alert days, the crime rate is lower**. But for other districts, there seems to be **no significant relationship** between the crime rate and high alert days as the **p-values are high**.
+
+# Problem 5 \| Final Project
+
+I was primarily involved with running the various Tree models in our Group Project where we explored trips data from a Bike Share Company. Our project ran various regression models like Mulitple Linear Regression, Polynomial Regression, K Nearest Neighbors, Ridge Regression, Lasso Regression, Trees (Creating a Big Tree and then Pruning it), Bagging of Trees, Random Forests and Boosting of Trees.
+
+Both me and Eric (Pengwei) were reponsible for running the Tree and other Ensemble Tree models on our data. We both ran our own separate models for Tree Pruning, Random Forests, Bagging and Boosting. We then combined our findings and results. It has to be noted that the results obtained from running both of our models were roughly similar.
+
+For the presentation, I was also responsible for summarizing our findings and writing up a conclusion for the audience. I had to take a look at the various models run by our team and infer the relationship(s) between variables from the models and what it meant for the Bike Sharing Company and their business.
+
+
+
+
+
+
+
+
+
